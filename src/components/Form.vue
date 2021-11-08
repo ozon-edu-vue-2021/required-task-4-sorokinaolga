@@ -56,12 +56,29 @@
         <label for="gender">Женский</label>
       </div>
       <h2>Паспортные данные</h2>
-      <div class="row">
+      <div class="row nationality-selector" v-click-outside="hideDropdown">
         <label for="nationality">Гражданство</label>
-        <select v-model="formData.nationality" id="nationality">
-          <option disabled value="">Гражданство</option>
-          <option v-for="item in citizenship" :key="item.id">{{ item.nationality }}</option>
-        </select>
+        <input 
+          v-model="searchNationality"
+          id="nationality"
+          @focus="isDropdownOpen = true"
+        />
+          <div 
+            v-if="isDropdownOpen"
+            class="nationality-selector__dropdown"
+          >
+            <ul 
+              v-if="citizenship.length"
+            >
+              <li
+                v-for="item in citizenship"
+                :key="item.id"
+                @click="selectNationality(item.nationality)"
+              >
+                {{ item.nationality }}
+              </li>
+            </ul>
+          </div>
       </div>
       <div v-if="formData.nationality === 'Russia'" class="row">
         <div class="col">
@@ -171,10 +188,15 @@
 </template>
 
 <script>
+import ClickOutside from 'vue-click-outside';
+import { throttle } from '../throttle.js';
 import citizenship from '../assets/data/citizenships.json';
 import passportTypes from '../assets/data/passport-types.json';
 
 export default {
+  directives: {
+    ClickOutside,
+  },
   data() {
     return {
       citizenship: citizenship,
@@ -197,14 +219,38 @@ export default {
         isChangeName: false,
         lastSurname: '',
         lastName: ''
-      }
+      },
+      isDropdownOpen: false,
+      searchNationality: '',
+      throttledSearchNationality: null,
     };
   },
+  created() {
+    this.throttledSearchNationality = throttle(this.getNationality, 500);
+  },
   methods: {
-    submitData: function() {
+    submitData() {
       console.log(JSON.stringify(this.formData));
+    },
+    hideDropdown() {
+      this.isDropdownOpen = false;
+    },
+    selectNationality(selectedItem) {
+      this.formData.nationality = selectedItem;
+      this.searchNationality = selectedItem;
+      this.isDropdownOpen = false;
+    },
+    getNationality(searchWord) {
+      this.citizenship = citizenship.filter((item) =>
+        item.nationality.toLowerCase().includes(searchWord.toLowerCase())
+      );
     }
   },
+  watch: {
+    searchNationality(newValue) {
+      this.throttledSearchNationality(newValue);
+    }
+  }
 };
 </script>
 
@@ -225,6 +271,34 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+.nationality-selector {
+  position: relative;
+}
+.nationality-selector input {
+  width: 200px;
+  border: 2px solid #DEDFE7;
+  border-radius: 4px;
+}
+.nationality-selector__dropdown ul {
+  margin: 0;
+  padding: 0;
+	width: 200px;
+	border: 1px solid #DEDFE7;
+	position: absolute;
+	background: #fff;
+  top: 20px;
+  left: 106px;
+  height: 100px;
+  overflow: auto;
+}
+.nationality-selector__dropdown li {
+  list-style: none;
+	cursor: pointer;
+	padding: 5px 15px;
+}
+.nationality-selector__dropdown li:hover {
+  background-color: #DEDFE7;
 }
 .button {
   align-self: flex-end;
