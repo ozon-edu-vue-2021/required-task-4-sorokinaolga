@@ -26,9 +26,5 @@ export function validDate(validatedDate) {
   const date = new Date(validatedDate).getTime();
   const currentDate = Date.now();
 
-  if(date <= currentDate) {
-    return true;
-  } else {
-    return false;
-  }
+  return date <= currentDate;
 }
