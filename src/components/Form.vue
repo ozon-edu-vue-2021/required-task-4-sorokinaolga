@@ -63,11 +63,11 @@
     </div>
     <h3>Пол</h3>
     <div class="row"> 
-      <input v-model="formData.gender" type="radio" id="gender" name="gender" value="man" />
-      <label for="gender">Мужской</label>
+      <input v-model="formData.gender" type="radio" id="man" name="gender" value="man" />
+      <label for="man">Мужской</label>
 
-      <input v-model="formData.gender" type="radio" id="gender" name="gender" value="woman" />
-      <label for="gender">Женский</label>
+      <input v-model="formData.gender" type="radio" id="woman" name="gender" value="woman" />
+      <label for="woman">Женский</label>
     </div>
     <h2>Паспортные данные</h2>
     <div class="row nationality-selector" v-click-outside="hideDropdown">
@@ -93,6 +93,7 @@
               {{ item.nationality }}
             </li>
           </ul>
+          <div class="empty" v-else>Ничего не найдено</div>
         </div>
     </div>
     <div v-if="formData.nationality === 'Russia'" class="row">
@@ -154,11 +155,11 @@
       </div>
       <div class="row">
         <div class="col">
-          <label for="number">Номер паспорта </label>
+          <label for="foreignNumber">Номер паспорта </label>
           <input
             type="text"
-            v-model="formData.number"
-            id="number"
+            v-model="formData.foreignNumber"
+            id="foreignNumber"
             placeholder=""
           />
         </div>
@@ -170,9 +171,9 @@
           </select>
         </div>
         <div class="col">
-          <label for="type-passport">Тип паспорта </label>
+          <label for="type-passport">Тип паспорта</label>
             <select v-model="formData.typePassport" id="type-passport">
-            <option disabled value="">Страна выдачи</option>
+            <option disabled value="">Тип паспорта</option>
             <option v-for="item in passportTypes" :key="item.id">{{ item.type }}</option>
           </select>
         </div>
@@ -180,11 +181,11 @@
     </div>
     <h3>Меняли ли фамилию или имя?</h3>
     <div class="row"> 
-      <input v-model="formData.isChangeName" type="radio" id="change-name" name="change-name" :value="false" />
-      <label for="change-name">Нет</label>
+      <input v-model="formData.isChangeName" type="radio" id="noChangeName" name="changeName" :value="false" />
+      <label for="noChangeName">Нет</label>
 
-      <input v-model="formData.isChangeName" type="radio" id="change-name" name="change-name" :value="true" />
-      <label for="change-name">Да</label>
+      <input v-model="formData.isChangeName" type="radio" id="changeName" name="changeName" :value="true" />
+      <label for="changeName">Да</label>
     </div>
     <div v-if="formData.isChangeName" class="row">
       <div class="col">
@@ -216,7 +217,8 @@
 
 <script>
 import ClickOutside from 'vue-click-outside';
-import { throttle, validEmail, validText, validLatin, validSeries, validNumber, validDate } from '../helpers.js';
+import { debounce } from '../helpers.js';
+import { validationData } from './validationForm.js';
 import citizenship from '../assets/data/citizenships.json';
 import passportTypes from '../assets/data/passport-types.json';
 
@@ -241,6 +243,7 @@ export default {
         dateOfIssue: '',
         latinSurname: '',
         latinName: '',
+        foreignNumber: '',
         country: '',
         typePassport: '',
         isChangeName: false,
@@ -249,48 +252,33 @@ export default {
       },
       isDropdownOpen: false,
       searchNationality: '',
-      throttledSearchNationality: null,
+      debouncedSearchNationality: null,
       errors: [],
     };
   },
   created() {
-    this.throttledSearchNationality = throttle(this.getNationality, 500);
+    this.debouncedSearchNationality = debounce(this.getNationality, 100);
   },
   methods: {
     submitData() {
-      if(this.formData.surname && !validText(this.formData.surname)) {
-        this.errors.push('surname');
+      if(this.formData.nationality === 'Russia') {
+        this.formData.latinSurname = '';
+        this.formData.latinName = '';
+        this.formData.foreignNumber = '';
+        this.formData.country = '';
+        this.formData.typePassport = '';
+      } else {
+        this.formData.series = '';
+        this.formData.number = '';
+        this.formData.dateOfIssue = '';
       }
-      if(this.formData.name && !validText(this.formData.name)) {
-        this.errors.push('name');
+      if(!this.formData.isChangeName) {
+        this.formData.lastSurname = '';
+        this.formData.lastName = '';
       }
-      if(this.formData.patronym && !validText(this.formData.patronym)) {
-        this.errors.push('patronym');
-      }
-      if(this.formData.lastSurname && !validText(this.formData.lastSurname)) {
-        this.errors.push('lastSurname');
-      }
-      if(this.formData.lastName && !validText(this.formData.lastName)) {
-        this.errors.push('lastName');
-      }
-      if(this.formData.email && !validEmail(this.formData.email)) {
-        this.errors.push('email');
-      }
-      if(this.formData.series && !validSeries(this.formData.series)) {
-        this.errors.push('series');
-      }
-      if(this.formData.nationality === 'Russia' && this.formData.number && !validNumber(this.formData.number)) {
-        this.errors.push('number');
-      }
-      if(this.formData.latinSurname && !validLatin(this.formData.latinSurname)) {
-        this.errors.push('latinSurname');
-      }
-      if(this.formData.latinName && !validLatin(this.formData.latinName)) {
-        this.errors.push('latinName');
-      }
-      if(this.formData.birthdate && !validDate(this.formData.birthdate)) {
-        this.errors.push('birthdate')
-      }
+
+      this.errors = validationData(this.formData);
+
       if(this.errors.length == 0) {
         console.log(JSON.stringify(this.formData));
       }
@@ -314,7 +302,7 @@ export default {
   },
   watch: {
     searchNationality(newValue) {
-      this.throttledSearchNationality(newValue);
+      this.debouncedSearchNationality(newValue)
     }
   }
 };
@@ -363,7 +351,18 @@ select {
 	background: #fff;
   top: 20px;
   left: 106px;
-  height: 100px;
+  max-height: 100px;
+  overflow: auto;
+}
+.empty {
+  margin: 0;
+  padding: 5px 15px;
+	width: 200px;
+	border: 1px solid #DEDFE7;
+	position: absolute;
+	background: #fff;
+  top: 20px;
+  left: 106px;
   overflow: auto;
 }
 .nationality-selector__dropdown li {
